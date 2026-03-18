@@ -32,6 +32,15 @@ npm run dev
 - Import repo into Vercel
 - Set env vars / auth strategy as needed
 
+### Bridge env for Vercel
+
+Add these in Vercel project settings:
+
+- `JMC_BRIDGE_URL`
+- `JMC_BRIDGE_TOKEN`
+
+Those point the hosted dashboard at the AWS-side bridge service in `bridge/server.mjs`.
+
 ## Security
 
 The current password is stored in `data/settings.json` for fast setup. Move that to an environment variable before treating this as production-grade.

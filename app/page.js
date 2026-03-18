@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getTasks, getFeed, getAgents, getSettings } from '../lib/dashboard';
 import TaskIntake from '../components/TaskIntake';
+import CommandComposer from '../components/CommandComposer';
 
 const columns = [
   ['inbox', 'Inbox'],
@@ -10,11 +11,11 @@ const columns = [
   ['done', 'Done']
 ];
 
-export default function HomePage() {
-  const tasks = getTasks();
-  const feed = getFeed();
-  const agents = getAgents();
-  const settings = getSettings();
+export default async function HomePage() {
+  const tasks = await getTasks();
+  const feed = await getFeed();
+  const agents = await getAgents();
+  const settings = await getSettings();
   const counts = {
     total: tasks.length,
     active: tasks.filter((task) => task.status === 'in_progress').length,
@@ -47,16 +48,9 @@ export default function HomePage() {
         <section className="panel">
           <div style={{ fontWeight: 700, marginBottom: 12 }}>Message OpenClaw agent</div>
           <div className="muted" style={{ marginBottom: 12 }}>
-            This first version exposes an ingest endpoint so the dashboard can create agent work. The live AWS/OpenClaw messaging bridge is the next connector step.
+            With the bridge configured, this sends a real task/message back into Jarvis on the AWS runtime.
           </div>
-          <div className="code">POST /api/ingest
-{`{
-  "title": "Review new task board items",
-  "detail": "Heartbeat saw a new actionable task.",
-  "priority": "high",
-  "owner": "jarvis",
-  "source": "heartbeat"
-}`}</div>
+          <CommandComposer />
         </section>
       </div>
 

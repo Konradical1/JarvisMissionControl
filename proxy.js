@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 const openRoutes = ['/login', '/api/auth'];
 
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
   if (openRoutes.some((route) => pathname.startsWith(route)) || pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
     return NextResponse.next();

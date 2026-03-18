@@ -1,7 +1,7 @@
 import { getSettings } from '../../lib/dashboard';
 
-export default function SettingsPage() {
-  const settings = getSettings();
+export default async function SettingsPage() {
+  const settings = await getSettings();
   return (
     <div className="stack">
       <div>
@@ -13,6 +13,7 @@ export default function SettingsPage() {
           <div style={{ fontWeight: 700, marginBottom: 10 }}>Connector</div>
           <div className="badge medium">{settings.connector?.status || 'unknown'}</div>
           <p className="muted" style={{ marginTop: 12 }}>{settings.connector?.notes}</p>
+          <div className="code" style={{ marginTop: 12 }}>Expected env on Vercel:\nJMC_BRIDGE_URL\nJMC_BRIDGE_TOKEN</div>
         </div>
         <div className="panel">
           <div style={{ fontWeight: 700, marginBottom: 10 }}>Planned tool surface</div>

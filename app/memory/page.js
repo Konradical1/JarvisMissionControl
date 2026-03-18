@@ -1,7 +1,7 @@
 import { getMemoryBundle } from '../../lib/dashboard';
 
-export default function MemoryPage() {
-  const bundle = getMemoryBundle();
+export default async function MemoryPage() {
+  const bundle = await getMemoryBundle();
   return (
     <div className="stack">
       <div>

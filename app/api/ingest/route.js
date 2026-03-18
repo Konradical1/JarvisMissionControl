@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import { readJson, writeJson } from '../../../lib/store';
+import { fetchBridge } from '../../../lib/remote';
 
 export async function POST(request) {
   const body = await request.json();
+
+  if (process.env.JMC_BRIDGE_URL) {
+    const result = await fetchBridge('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    return NextResponse.json(result);
+  }
+
   const tasks = readJson('tasks.json', []);
   const feed = readJson('feed.json', []);
 

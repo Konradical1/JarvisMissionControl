@@ -1,7 +1,7 @@
 import { getAgents } from '../../lib/dashboard';
 
-export default function AgentsPage() {
-  const agents = getAgents();
+export default async function AgentsPage() {
+  const agents = await getAgents();
   return (
     <div className="stack">
       <div>
