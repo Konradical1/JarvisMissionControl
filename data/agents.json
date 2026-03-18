@@ -1,0 +1,18 @@
+[
+  {
+    "id": "jarvis-main",
+    "name": "Jarvis Main",
+    "type": "main",
+    "model": "gpt-5.4",
+    "usage": { "window": "168h", "left": "91%", "cached": "99%" },
+    "status": "active"
+  },
+  {
+    "id": "subagent-template",
+    "name": "Subagent (template)",
+    "type": "subagent",
+    "model": "gpt-5.4",
+    "usage": { "window": "n/a", "left": "n/a", "cached": "n/a" },
+    "status": "idle"
+  }
+]

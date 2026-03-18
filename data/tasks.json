@@ -1,0 +1,32 @@
+[
+  {
+    "id": "task-feeding-block",
+    "title": "Finish The Feeding Block submission build",
+    "status": "in_progress",
+    "source": "memory",
+    "priority": "urgent",
+    "owner": "jarvis",
+    "detail": "Main near-term deadline: April 4 Games for Change. Focus on shipping the submission version, not polishing everything.",
+    "createdAt": "2026-03-18T18:00:00.000Z"
+  },
+  {
+    "id": "task-ap2d",
+    "title": "Complete remaining AP2D portfolio pieces",
+    "status": "todo",
+    "source": "memory",
+    "priority": "high",
+    "owner": "konrad",
+    "detail": "About 8 pieces still needed by next month.",
+    "createdAt": "2026-03-18T18:00:00.000Z"
+  },
+  {
+    "id": "task-stretch",
+    "title": "Stretch after practice",
+    "status": "waiting",
+    "source": "reminder",
+    "priority": "medium",
+    "owner": "konrad",
+    "detail": "Keep the ankle/hamstrings/patellar tendon from getting worse.",
+    "createdAt": "2026-03-18T18:52:00.000Z"
+  }
+]

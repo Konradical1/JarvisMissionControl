@@ -1,0 +1,10 @@
+{
+  "password": "EagleAva4!",
+  "siteTitle": "Jarvis Mission Control",
+  "heartbeatPolicy": "Auto-send new actionable tasks to Jarvis on heartbeat.",
+  "connector": {
+    "mode": "bridge-required",
+    "status": "pending",
+    "notes": "This Vercel deployment needs a secure bridge to your OpenClaw/AWS runtime for live session, cron, and task execution data."
+  }
+}

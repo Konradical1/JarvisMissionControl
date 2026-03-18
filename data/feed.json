@@ -1,0 +1,22 @@
+[
+  {
+    "id": "feed-1",
+    "time": "2026-03-18T21:00:00.000Z",
+    "type": "reminder",
+    "taskId": "task-stretch",
+    "message": "Reminder scheduled: Stretch after practice"
+  },
+  {
+    "id": "feed-2",
+    "time": "2026-03-18T21:05:00.000Z",
+    "type": "task",
+    "taskId": "task-feeding-block",
+    "message": "Jarvis marked The Feeding Block as the main active deadline."
+  },
+  {
+    "id": "feed-3",
+    "time": "2026-03-18T21:10:00.000Z",
+    "type": "memory",
+    "message": "Updated Konrad profile, goals, stressors, and accountability preferences."
+  }
+]
