@@ -1,6 +1,7 @@
 import { getTasks, getFeed, getAgents, getSettings } from '../lib/dashboard';
 import TaskIntake from '../components/TaskIntake';
 import CommandComposer from '../components/CommandComposer';
+import ActivityFeed from '../components/ActivityFeed';
 
 const columns = [
   ['inbox', 'Inbox'],
@@ -74,21 +75,7 @@ export default async function HomePage() {
                 <h2 className="panel-title">Live activity</h2>
               </div>
             </div>
-            <div className="activity-stream">
-              {feed.slice(0, 10).map((item) => (
-                <div className="activity-item" key={item.id}>
-                  <div className="activity-marker" />
-                  <div>
-                    <div className="activity-topline">
-                      <span className="activity-type">{item.type}</span>
-                      <time>{new Date(item.time).toLocaleTimeString()}</time>
-                    </div>
-                    <div className="activity-body">{item.message}</div>
-                    {item.taskId ? <div className="activity-tag">{item.taskId}</div> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ActivityFeed initialFeed={feed} />
           </div>
         </aside>
       </section>

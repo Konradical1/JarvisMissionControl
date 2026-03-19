@@ -33,12 +33,35 @@ function auth(req) {
   return header === `Bearer ${TOKEN}`;
 }
 
+function appDataPath(name) {
+  return path.join(process.cwd(), 'data', name);
+}
+
 function readJsonMaybe(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 }
 
+function writeJson(file, value) {
+  fs.writeFileSync(file, JSON.stringify(value, null, 2));
+}
+
 function readTextMaybe(relativePath) {
   try { return fs.readFileSync(path.join(WORKSPACE, relativePath), 'utf8'); } catch { return ''; }
+}
+
+function appendFeed(item) {
+  const feedPath = appDataPath('feed.json');
+  const feed = readJsonMaybe(feedPath, []);
+  const entry = {
+    id: `feed-${Date.now()}`,
+    time: new Date().toISOString(),
+    type: 'event',
+    ...item
+  };
+  feed.unshift(entry);
+  writeJson(feedPath, feed);
+  snapshotCache = null;
+  return entry;
 }
 
 async function withTimeout(promise, ms, label) {
@@ -69,7 +92,8 @@ async function oc(args, label = args.join(' ')) {
 }
 
 function queueAgentMessage(message) {
-  const args = ['agent', '--session-id', getTelegramSessionId(), '--message', message, '--deliver'];
+  const sessionId = getTelegramSessionId();
+  const args = ['agent', '--session-id', sessionId, '--message', message, '--deliver'];
   const child = spawn(OPENCLAW_BIN, args, {
     cwd: WORKSPACE,
     detached: true,
@@ -78,6 +102,7 @@ function queueAgentMessage(message) {
   });
   child.unref();
   log('queued agent message', args.join(' '));
+  appendFeed({ type: 'command', message: `Direct command queued: ${message}` });
 }
 
 function getTelegramSessionId() {
@@ -112,10 +137,9 @@ async function buildSnapshotFresh() {
     oc(['cron', 'status', '--json'], 'cron status')
   ]);
 
-  const appData = path.join(process.cwd(), 'data');
-  const tasks = readJsonMaybe(path.join(appData, 'tasks.json'), []);
-  const feed = readJsonMaybe(path.join(appData, 'feed.json'), []);
-  const localAgents = readJsonMaybe(path.join(appData, 'agents.json'), []);
+  const tasks = readJsonMaybe(appDataPath('tasks.json'), []);
+  const feed = readJsonMaybe(appDataPath('feed.json'), []);
+  const localAgents = readJsonMaybe(appDataPath('agents.json'), []);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -167,9 +191,9 @@ async function getSnapshot() {
         bridge: { ok: false, error: String(error), cached: false },
         openclaw: { status: {}, sessions: {}, cron: {} },
         missionControl: {
-          tasks: readJsonMaybe(path.join(process.cwd(), 'data', 'tasks.json'), []),
-          feed: readJsonMaybe(path.join(process.cwd(), 'data', 'feed.json'), []),
-          agents: readJsonMaybe(path.join(process.cwd(), 'data', 'agents.json'), []),
+          tasks: readJsonMaybe(appDataPath('tasks.json'), []),
+          feed: readJsonMaybe(appDataPath('feed.json'), []),
+          agents: readJsonMaybe(appDataPath('agents.json'), []),
           memory: { user: readTextMaybe('USER.md'), memory: readTextMaybe('MEMORY.md') }
         }
       };
@@ -196,13 +220,17 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/snapshot') {
       return send(res, 200, await getSnapshot());
     }
+    if (req.method === 'GET' && req.url === '/feed') {
+      return send(res, 200, readJsonMaybe(appDataPath('feed.json'), []));
+    }
+    if (req.method === 'POST' && req.url === '/feed') {
+      const body = await readBody(req);
+      return send(res, 201, appendFeed(body));
+    }
     if (req.method === 'POST' && req.url === '/tasks') {
       const body = await readBody(req);
-      const appData = path.join(process.cwd(), 'data');
-      const tasksPath = path.join(appData, 'tasks.json');
-      const feedPath = path.join(appData, 'feed.json');
+      const tasksPath = appDataPath('tasks.json');
       const tasks = readJsonMaybe(tasksPath, []);
-      const feed = readJsonMaybe(feedPath, []);
       const task = {
         id: `task-${Date.now()}`,
         title: body.title || 'Untitled task',
@@ -214,10 +242,8 @@ const server = http.createServer(async (req, res) => {
         createdAt: new Date().toISOString()
       };
       tasks.unshift(task);
-      feed.unshift({ id: `feed-${Date.now()}`, time: new Date().toISOString(), type: 'task', taskId: task.id, message: `Bridge task created: ${task.title}` });
-      fs.writeFileSync(tasksPath, JSON.stringify(tasks, null, 2));
-      fs.writeFileSync(feedPath, JSON.stringify(feed, null, 2));
-      snapshotCache = null;
+      writeJson(tasksPath, tasks);
+      appendFeed({ type: 'task', taskId: task.id, message: `Task created: ${task.title}` });
       return send(res, 201, { ok: true, task });
     }
     if (req.method === 'POST' && req.url === '/message') {
