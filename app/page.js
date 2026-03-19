@@ -5,100 +5,207 @@ import CommandComposer from '../components/CommandComposer';
 
 const columns = [
   ['inbox', 'Inbox'],
-  ['todo', 'Todo'],
-  ['in_progress', 'In Progress'],
+  ['todo', 'Queued'],
+  ['in_progress', 'Executing'],
   ['waiting', 'Waiting'],
-  ['done', 'Done']
+  ['done', 'Resolved']
 ];
+
+function groupTasks(tasks) {
+  return Object.fromEntries(columns.map(([key]) => [key, tasks.filter((task) => task.status === key)]));
+}
 
 export default async function HomePage() {
   const tasks = await getTasks();
   const feed = await getFeed();
   const agents = await getAgents();
   const settings = await getSettings();
-  const counts = {
-    total: tasks.length,
-    active: tasks.filter((task) => task.status === 'in_progress').length,
-    urgent: tasks.filter((task) => task.priority === 'urgent').length,
-    agents: agents.length
-  };
+  const grouped = groupTasks(tasks);
+  const activeTask = grouped.in_progress[0] || grouped.todo[0] || tasks[0];
+  const urgentCount = tasks.filter((task) => task.priority === 'urgent').length;
+  const doneCount = grouped.done.length;
+  const completion = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
 
   return (
-    <div className="stack">
-      <div className="topbar">
-        <div>
-          <div className="title">Tasks</div>
-          <div className="subtitle">Main mission control board for Jarvis, your deadlines, and incoming work.</div>
+    <div className="mission-shell">
+      <section className="hero-panel mission-panel">
+        <div className="hero-grid">
+          <div className="hero-copy">
+            <div className="eyebrow">Jarvis / Mission Control</div>
+            <h1 className="hero-title">Command your work like it actually matters.</h1>
+            <p className="hero-subtitle">
+              Live task intelligence, agent visibility, memory context, and operational control for Jarvis — without the cheap SaaS dashboard look.
+            </p>
+
+            <div className="hero-meta-row">
+              <div className="signal-chip live"><span className="signal-dot" /> bridge {settings.connector?.status || 'unknown'}</div>
+              <div className="signal-chip">agents {agents.length}</div>
+              <div className="signal-chip">urgent {urgentCount}</div>
+              <div className="signal-chip">completion {completion}%</div>
+            </div>
+
+            <div className="hero-actions">
+              <Link href="/settings" className="button mission-primary">Connector</Link>
+              <Link href="/memory" className="button mission-secondary">Memory</Link>
+              <Link href="/docs" className="button mission-secondary">Workspace docs</Link>
+            </div>
+          </div>
+
+          <div className="hero-side">
+            <div className="status-rail mission-subpanel">
+              <div className="section-cap">Active thread</div>
+              <div className="status-block">
+                <div className="status-kicker">Primary objective</div>
+                <div className="status-title">{activeTask?.title || 'No active objective'}</div>
+                <p>{activeTask?.detail || 'No task is currently selected. Use the intake panel to create one.'}</p>
+              </div>
+              <div className="mini-metrics">
+                <div>
+                  <span>open</span>
+                  <strong>{tasks.length}</strong>
+                </div>
+                <div>
+                  <span>executing</span>
+                  <strong>{grouped.in_progress.length}</strong>
+                </div>
+                <div>
+                  <span>resolved</span>
+                  <strong>{doneCount}</strong>
+                </div>
+              </div>
+              <div className="progress-arc">
+                <div className="progress-bar"><div style={{ width: `${completion}%` }} /></div>
+                <div className="progress-caption">mission completion</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <Link href="/settings" className="button secondary">Connector status</Link>
-      </div>
+      </section>
 
-      <div className="kpis">
-        <div className="kpi"><div className="label">Open tasks</div><div className="value">{counts.total}</div></div>
-        <div className="kpi"><div className="label">In progress</div><div className="value">{counts.active}</div></div>
-        <div className="kpi"><div className="label">Urgent</div><div className="value">{counts.urgent}</div></div>
-        <div className="kpi"><div className="label">Agents visible</div><div className="value">{counts.agents}</div></div>
-      </div>
+      <section className="mission-grid-top">
+        <div className="mission-panel primary-focus">
+          <div className="panel-header-row">
+            <div>
+              <div className="section-cap">Task field</div>
+              <h2 className="panel-title-xl">Operational board</h2>
+            </div>
+            <div className="board-legend">
+              {columns.map(([key, label]) => (
+                <div key={key} className="legend-pill">{label} <strong>{grouped[key].length}</strong></div>
+              ))}
+            </div>
+          </div>
 
-      <div className="grid cards-2">
-        <section className="panel">
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>Quick task intake</div>
+          <div className="kanban-premium">
+            {columns.map(([key, label]) => (
+              <div className="kanban-lane" key={key}>
+                <div className="lane-head">
+                  <span>{label}</span>
+                  <strong>{grouped[key].length}</strong>
+                </div>
+                <div className="lane-stack">
+                  {grouped[key].slice(0, 4).map((task) => (
+                    <article className="task-tile" key={task.id}>
+                      <div className="task-tile-top">
+                        <span className={`priority-chip ${task.priority}`}>{task.priority}</span>
+                        <span className="task-owner">{task.owner}</span>
+                      </div>
+                      <h3>{task.title}</h3>
+                      <p>{task.detail}</p>
+                      <div className="task-meta-line">
+                        <span>{task.source}</span>
+                        <span>{new Date(task.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </article>
+                  ))}
+                  {grouped[key].length === 0 ? <div className="empty-lane">No tasks</div> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <aside className="mission-side-stack">
+          <div className="mission-panel compact-feed">
+            <div className="panel-header-row tight">
+              <div>
+                <div className="section-cap">Telemetry</div>
+                <h2 className="panel-title">Live activity</h2>
+              </div>
+            </div>
+            <div className="activity-stream">
+              {feed.slice(0, 8).map((item) => (
+                <div className="activity-item" key={item.id}>
+                  <div className="activity-marker" />
+                  <div>
+                    <div className="activity-topline">
+                      <span className="activity-type">{item.type}</span>
+                      <time>{new Date(item.time).toLocaleTimeString()}</time>
+                    </div>
+                    <div className="activity-body">{item.message}</div>
+                    {item.taskId ? <div className="activity-tag">{item.taskId}</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="widget-row">
+            <div className="mission-panel widget-panel">
+              <div className="section-cap">Bridge</div>
+              <div className="widget-big">{settings.connector?.status || 'unknown'}</div>
+              <p>{settings.connector?.notes || 'No connector note.'}</p>
+            </div>
+            <div className="mission-panel widget-panel cyan">
+              <div className="section-cap">Heartbeat</div>
+              <div className="widget-big">Auto</div>
+              <p>{settings.heartbeatPolicy}</p>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section className="mission-grid-bottom">
+        <div className="mission-panel intake-panel">
+          <div className="panel-header-row tight">
+            <div>
+              <div className="section-cap">Create work</div>
+              <h2 className="panel-title">Task intake</h2>
+            </div>
+          </div>
           <TaskIntake />
-        </section>
-        <section className="panel">
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>Message OpenClaw agent</div>
-          <div className="muted" style={{ marginBottom: 12 }}>
-            With the bridge configured, this sends a real task/message back into Jarvis on the AWS runtime.
+        </div>
+
+        <div className="mission-panel command-panel">
+          <div className="panel-header-row tight">
+            <div>
+              <div className="section-cap">Direct command</div>
+              <h2 className="panel-title">Message Jarvis</h2>
+            </div>
           </div>
           <CommandComposer />
-        </section>
-      </div>
+        </div>
 
-      <div className="layout-main">
-        <section className="panel">
-          <div className="topbar" style={{ marginBottom: 12 }}>
+        <div className="mission-panel tertiary-panel">
+          <div className="panel-header-row tight">
             <div>
-              <div style={{ fontWeight: 700 }}>Kanban board</div>
-              <div className="subtitle">Heartbeat rule: {settings.heartbeatPolicy}</div>
+              <div className="section-cap">Runtime</div>
+              <h2 className="panel-title">Agent surface</h2>
             </div>
           </div>
-          <div className="kanban">
-            {columns.map(([key, label]) => (
-              <div className="column" key={key}>
-                <h3>{label}</h3>
-                {tasks.filter((task) => task.status === key).map((task) => (
-                  <div className="card" key={task.id}>
-                    <div className={`badge ${task.priority}`}>{task.priority}</div>
-                    <h4 style={{ marginTop: 10 }}>{task.title}</h4>
-                    <p>{task.detail}</p>
-                    <p style={{ marginTop: 10 }}><span className="muted">Owner:</span> {task.owner}</p>
-                    <p><span className="muted">Source:</span> {task.source}</p>
-                  </div>
-                ))}
+          <div className="agent-list-premium">
+            {agents.slice(0, 4).map((agent) => (
+              <div className="agent-row" key={agent.id}>
+                <div>
+                  <div className="agent-name">{agent.name}</div>
+                  <div className="agent-meta">{agent.type} · {agent.model}</div>
+                </div>
+                <div className="agent-state">{agent.status}</div>
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="panel">
-          <div className="topbar" style={{ marginBottom: 12 }}>
-            <div>
-              <div style={{ fontWeight: 700 }}>Live activity feed</div>
-              <div className="subtitle">Detailed events for tasks, memory, reminders, and future tool runs.</div>
-            </div>
-          </div>
-          <div className="feed">
-            {feed.map((item) => (
-              <div className="feedItem" key={item.id}>
-                <time>{new Date(item.time).toLocaleString()}</time>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>{item.type}</div>
-                <div className="muted">{item.message}</div>
-                {item.taskId ? <div style={{ marginTop: 8 }} className="badge medium">{item.taskId}</div> : null}
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   );
 }

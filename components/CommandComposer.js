@@ -24,11 +24,11 @@ export default function CommandComposer() {
   }
 
   return (
-    <form onSubmit={submit} className="stack">
-      <textarea className="textarea" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Tell Jarvis what to do..." />
-      <div className="row" style={{ alignItems: 'center' }}>
-        <button className="button" type="submit">Send to Jarvis</button>
-        <div className="muted">{status}</div>
+    <form onSubmit={submit} className="mission-form stack compact-stack">
+      <textarea className="textarea mission-textarea short" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Tell Jarvis what to do right now..." />
+      <div className="row compact-row align-center">
+        <button className="button mission-primary" type="submit">Send command</button>
+        <div className="muted mission-status-inline">{status}</div>
       </div>
     </form>
   );
