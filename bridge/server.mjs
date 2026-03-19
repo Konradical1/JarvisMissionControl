@@ -10,6 +10,16 @@ const TOKEN = process.env.JMC_BRIDGE_TOKEN || '';
 const WORKSPACE = process.env.JMC_WORKSPACE || path.resolve(process.cwd(), '..');
 const TARGET = process.env.JMC_TARGET || '7612783711';
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || 'openclaw';
+const SNAPSHOT_TTL_MS = Number(process.env.JMC_SNAPSHOT_TTL_MS || 15000);
+const COMMAND_TIMEOUT_MS = Number(process.env.JMC_COMMAND_TIMEOUT_MS || 4000);
+
+let snapshotCache = null;
+let snapshotCacheAt = 0;
+let inflightSnapshot = null;
+
+function log(...args) {
+  console.log(new Date().toISOString(), ...args);
+}
 
 function send(res, code, data) {
   res.writeHead(code, { 'Content-Type': 'application/json' });
@@ -30,17 +40,39 @@ function readTextMaybe(relativePath) {
   try { return fs.readFileSync(path.join(WORKSPACE, relativePath), 'utf8'); } catch { return ''; }
 }
 
-async function oc(args) {
-  const { stdout } = await execFileAsync(OPENCLAW_BIN, args, { cwd: WORKSPACE, maxBuffer: 1024 * 1024 * 4 });
-  return stdout.trim();
+async function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-async function buildSnapshot() {
+async function oc(args, label = args.join(' ')) {
+  const start = Date.now();
+  const result = await withTimeout(
+    execFileAsync(OPENCLAW_BIN, args, {
+      cwd: WORKSPACE,
+      maxBuffer: 1024 * 1024 * 4,
+      timeout: COMMAND_TIMEOUT_MS
+    }),
+    COMMAND_TIMEOUT_MS + 500,
+    label
+  );
+  log('cmd', label, 'ms=', Date.now() - start);
+  return result.stdout.trim();
+}
+
+async function buildSnapshotFresh() {
   const [statusRaw, sessionsRaw, cronListRaw, cronStatusRaw] = await Promise.allSettled([
-    oc(['status', '--usage', '--json']),
-    oc(['sessions', '--all-agents', '--json']),
-    oc(['cron', 'list', '--all', '--json']),
-    oc(['cron', 'status', '--json'])
+    oc(['status', '--usage', '--json'], 'status'),
+    oc(['sessions', '--all-agents', '--json'], 'sessions'),
+    oc(['cron', 'list', '--all', '--json'], 'cron list'),
+    oc(['cron', 'status', '--json'], 'cron status')
   ]);
 
   const appData = path.join(process.cwd(), 'data');
@@ -53,7 +85,8 @@ async function buildSnapshot() {
     bridge: {
       ok: true,
       workspace: WORKSPACE,
-      target: TARGET
+      target: TARGET,
+      cached: false
     },
     openclaw: {
       status: statusRaw.status === 'fulfilled' ? JSON.parse(statusRaw.value) : { error: String(statusRaw.reason) },
@@ -75,6 +108,56 @@ async function buildSnapshot() {
   };
 }
 
+async function getSnapshot() {
+  const now = Date.now();
+  if (snapshotCache && now - snapshotCacheAt < SNAPSHOT_TTL_MS) {
+    return { ...snapshotCache, bridge: { ...(snapshotCache.bridge || {}), cached: true } };
+  }
+
+  if (inflightSnapshot) {
+    return inflightSnapshot;
+  }
+
+  inflightSnapshot = buildSnapshotFresh()
+    .then((snapshot) => {
+      snapshotCache = snapshot;
+      snapshotCacheAt = Date.now();
+      return snapshot;
+    })
+    .catch((error) => {
+      log('snapshot error', String(error));
+      if (snapshotCache) {
+        return {
+          ...snapshotCache,
+          bridge: {
+            ...(snapshotCache.bridge || {}),
+            cached: true,
+            warning: String(error)
+          }
+        };
+      }
+      return {
+        generatedAt: new Date().toISOString(),
+        bridge: { ok: false, error: String(error), cached: false },
+        openclaw: { status: {}, sessions: {}, cron: {} },
+        missionControl: {
+          tasks: readJsonMaybe(path.join(process.cwd(), 'data', 'tasks.json'), []),
+          feed: readJsonMaybe(path.join(process.cwd(), 'data', 'feed.json'), []),
+          agents: readJsonMaybe(path.join(process.cwd(), 'data', 'agents.json'), []),
+          memory: {
+            user: readTextMaybe('USER.md'),
+            memory: readTextMaybe('MEMORY.md')
+          }
+        }
+      };
+    })
+    .finally(() => {
+      inflightSnapshot = null;
+    });
+
+  return inflightSnapshot;
+}
+
 async function readBody(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -83,22 +166,18 @@ async function readBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (!auth(req)) return send(res, 401, { ok: false, error: 'Unauthorized' });
+  try {
+    if (!auth(req)) return send(res, 401, { ok: false, error: 'Unauthorized' });
 
-  if (req.method === 'GET' && req.url === '/health') {
-    return send(res, 200, { ok: true, service: 'jarvis-mission-control-bridge', time: new Date().toISOString() });
-  }
-
-  if (req.method === 'GET' && req.url === '/snapshot') {
-    try {
-      return send(res, 200, await buildSnapshot());
-    } catch (error) {
-      return send(res, 500, { ok: false, error: String(error) });
+    if (req.method === 'GET' && req.url === '/health') {
+      return send(res, 200, { ok: true, service: 'jarvis-mission-control-bridge', time: new Date().toISOString() });
     }
-  }
 
-  if (req.method === 'POST' && req.url === '/tasks') {
-    try {
+    if (req.method === 'GET' && req.url === '/snapshot') {
+      return send(res, 200, await getSnapshot());
+    }
+
+    if (req.method === 'POST' && req.url === '/tasks') {
       const body = await readBody(req);
       const appData = path.join(process.cwd(), 'data');
       const tasksPath = path.join(appData, 'tasks.json');
@@ -119,28 +198,34 @@ const server = http.createServer(async (req, res) => {
       feed.unshift({ id: `feed-${Date.now()}`, time: new Date().toISOString(), type: 'task', taskId: task.id, message: `Bridge task created: ${task.title}` });
       fs.writeFileSync(tasksPath, JSON.stringify(tasks, null, 2));
       fs.writeFileSync(feedPath, JSON.stringify(feed, null, 2));
+      snapshotCache = null;
       return send(res, 201, { ok: true, task });
-    } catch (error) {
-      return send(res, 500, { ok: false, error: String(error) });
     }
-  }
 
-  if (req.method === 'POST' && req.url === '/message') {
-    try {
+    if (req.method === 'POST' && req.url === '/message') {
       const body = await readBody(req);
       const args = ['agent', '--to', TARGET, '--message', body.message || ''];
       if (body.deliver) args.push('--deliver');
       args.push('--json');
-      const result = await oc(args);
+      const result = await oc(args, 'agent message');
       return send(res, 200, { ok: true, result: JSON.parse(result) });
-    } catch (error) {
-      return send(res, 500, { ok: false, error: String(error) });
     }
-  }
 
-  return send(res, 404, { ok: false, error: 'Not found' });
+    return send(res, 404, { ok: false, error: 'Not found' });
+  } catch (error) {
+    log('request error', req.method, req.url, String(error));
+    return send(res, 500, { ok: false, error: String(error) });
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  log('uncaughtException', error?.stack || String(error));
+});
+
+process.on('unhandledRejection', (error) => {
+  log('unhandledRejection', error?.stack || String(error));
 });
 
 server.listen(PORT, () => {
-  console.log(`Jarvis Mission Control bridge listening on :${PORT}`);
+  log(`Jarvis Mission Control bridge listening on :${PORT}`);
 });
