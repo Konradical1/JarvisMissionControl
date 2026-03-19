@@ -64,6 +64,15 @@ function appendFeed(item) {
   return entry;
 }
 
+function readTasks() {
+  return readJsonMaybe(appDataPath('tasks.json'), []);
+}
+
+function writeTasks(tasks) {
+  writeJson(appDataPath('tasks.json'), tasks);
+  snapshotCache = null;
+}
+
 async function withTimeout(promise, ms, label) {
   let timer;
   const timeout = new Promise((_, reject) => {
@@ -137,7 +146,7 @@ async function buildSnapshotFresh() {
     oc(['cron', 'status', '--json'], 'cron status')
   ]);
 
-  const tasks = readJsonMaybe(appDataPath('tasks.json'), []);
+  const tasks = readTasks();
   const feed = readJsonMaybe(appDataPath('feed.json'), []);
   const localAgents = readJsonMaybe(appDataPath('agents.json'), []);
 
@@ -191,7 +200,7 @@ async function getSnapshot() {
         bridge: { ok: false, error: String(error), cached: false },
         openclaw: { status: {}, sessions: {}, cron: {} },
         missionControl: {
-          tasks: readJsonMaybe(appDataPath('tasks.json'), []),
+          tasks: readTasks(),
           feed: readJsonMaybe(appDataPath('feed.json'), []),
           agents: readJsonMaybe(appDataPath('agents.json'), []),
           memory: { user: readTextMaybe('USER.md'), memory: readTextMaybe('MEMORY.md') }
@@ -229,8 +238,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && req.url === '/tasks') {
       const body = await readBody(req);
-      const tasksPath = appDataPath('tasks.json');
-      const tasks = readJsonMaybe(tasksPath, []);
+      const tasks = readTasks();
       const task = {
         id: `task-${Date.now()}`,
         title: body.title || 'Untitled task',
@@ -242,9 +250,17 @@ const server = http.createServer(async (req, res) => {
         createdAt: new Date().toISOString()
       };
       tasks.unshift(task);
-      writeJson(tasksPath, tasks);
+      writeTasks(tasks);
       appendFeed({ type: 'task', taskId: task.id, message: `Task created: ${task.title}` });
       return send(res, 201, { ok: true, task });
+    }
+    if (req.method === 'PATCH' && req.url === '/tasks') {
+      const body = await readBody(req);
+      const tasks = readTasks();
+      const next = tasks.map((task) => task.id === body.id ? { ...task, ...body, id: task.id } : task);
+      writeTasks(next);
+      appendFeed({ type: 'task', taskId: body.id, message: `Task updated: ${body.id} → ${body.status || 'changed'}` });
+      return send(res, 200, { ok: true, tasks: next });
     }
     if (req.method === 'POST' && req.url === '/message') {
       const body = await readBody(req);

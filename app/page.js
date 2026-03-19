@@ -2,6 +2,7 @@ import { getTasks, getFeed, getAgents, getSettings } from '../lib/dashboard';
 import TaskIntake from '../components/TaskIntake';
 import CommandComposer from '../components/CommandComposer';
 import ActivityFeed from '../components/ActivityFeed';
+import TaskBoard from '../components/TaskBoard';
 
 const columns = [
   ['inbox', 'Inbox'],
@@ -38,33 +39,7 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="kanban-premium">
-            {columns.map(([key, label]) => (
-              <div className="kanban-lane" key={key}>
-                <div className="lane-head">
-                  <span>{label}</span>
-                  <strong>{grouped[key].length}</strong>
-                </div>
-                <div className="lane-stack">
-                  {grouped[key].slice(0, 4).map((task) => (
-                    <article className="task-tile" key={task.id}>
-                      <div className="task-tile-top">
-                        <span className={`priority-chip ${task.priority}`}>{task.priority}</span>
-                        <span className="task-owner">{task.owner}</span>
-                      </div>
-                      <h3>{task.title}</h3>
-                      <p>{task.detail}</p>
-                      <div className="task-meta-line">
-                        <span>{task.source}</span>
-                        <span>{new Date(task.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </article>
-                  ))}
-                  {grouped[key].length === 0 ? <div className="empty-lane">No tasks</div> : null}
-                </div>
-              </div>
-            ))}
-          </div>
+          <TaskBoard initialTasks={tasks} />
         </div>
 
         <aside className="mission-side-stack top-activity-stack">
