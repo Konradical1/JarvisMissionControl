@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 const columns = [
   ['inbox', 'Inbox'],
@@ -16,12 +15,36 @@ function groupTasks(tasks) {
 }
 
 export default function TaskBoard({ initialTasks = [] }) {
-  const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
   const [selectedId, setSelectedId] = useState(initialTasks[0]?.id || null);
   const [busy, setBusy] = useState(false);
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
   const selectedTask = tasks.find((task) => task.id === selectedId) || null;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function refresh() {
+      try {
+        const res = await fetch('/api/tasks', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted || !Array.isArray(data)) return;
+        setTasks(data);
+        setSelectedId((current) => {
+          if (current && data.some((task) => task.id === current)) return current;
+          return data[0]?.id || null;
+        });
+      } catch {}
+    }
+
+    refresh();
+    const id = setInterval(refresh, 2500);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, []);
 
   async function updateTask(id, patch) {
     setBusy(true);
@@ -31,9 +54,9 @@ export default function TaskBoard({ initialTasks = [] }) {
       body: JSON.stringify({ id, ...patch })
     });
     const data = await res.json();
-    if (res.ok) {
-      setTasks(data.tasks || tasks.map((task) => (task.id === id ? { ...task, ...patch } : task)));
-      router.refresh();
+    if (res.ok && Array.isArray(data.tasks)) {
+      setTasks(data.tasks);
+      setSelectedId(id);
     }
     setBusy(false);
   }
