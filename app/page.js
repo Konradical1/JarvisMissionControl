@@ -29,22 +29,21 @@ export default async function HomePage() {
   return (
     <div className="mission-shell">
       <section className="hero-panel mission-panel">
-        <div className="hero-grid">
-          <div className="hero-copy">
-            <div className="eyebrow">Jarvis / Mission Control</div>
-            <h1 className="hero-title">Command your work like it actually matters.</h1>
-            <p className="hero-subtitle">
-              Live task intelligence, agent visibility, memory context, and operational control for Jarvis — without the cheap SaaS dashboard look.
-            </p>
+        <div className="hero-grid compact-hero-grid">
+          <div className="hero-copy board-hero-copy">
+            <div>
+              <div className="section-cap">Task field</div>
+              <h1 className="hero-title board-hero-title">Operational board</h1>
+            </div>
 
-            <div className="hero-meta-row">
+            <div className="hero-meta-row compact-meta-row">
               <div className="signal-chip live"><span className="signal-dot" /> bridge {settings.connector?.status || 'unknown'}</div>
               <div className="signal-chip">agents {agents.length}</div>
               <div className="signal-chip">urgent {urgentCount}</div>
               <div className="signal-chip">completion {completion}%</div>
             </div>
 
-            <div className="hero-actions">
+            <div className="hero-actions compact-actions">
               <Link href="/settings" className="button mission-primary">Connector</Link>
               <Link href="/memory" className="button mission-secondary">Memory</Link>
               <Link href="/docs" className="button mission-secondary">Workspace docs</Link>
@@ -85,9 +84,9 @@ export default async function HomePage() {
       <section className="mission-grid-top">
         <div className="mission-panel primary-focus">
           <div className="panel-header-row">
-            <div>
-              <div className="section-cap">Task field</div>
-              <h2 className="panel-title-xl">Operational board</h2>
+            <div className="board-heading-block">
+              <div className="section-cap">Board lanes</div>
+              <h2 className="panel-title-xl">Execution flow</h2>
             </div>
             <div className="board-legend">
               {columns.map(([key, label]) => (
