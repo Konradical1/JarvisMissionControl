@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getTasks, getFeed, getAgents, getSettings } from '../lib/dashboard';
 import TaskIntake from '../components/TaskIntake';
 import CommandComposer from '../components/CommandComposer';
@@ -21,72 +20,15 @@ export default async function HomePage() {
   const agents = await getAgents();
   const settings = await getSettings();
   const grouped = groupTasks(tasks);
-  const activeTask = grouped.in_progress[0] || grouped.todo[0] || tasks[0];
-  const urgentCount = tasks.filter((task) => task.priority === 'urgent').length;
-  const doneCount = grouped.done.length;
-  const completion = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
 
   return (
     <div className="mission-shell">
-      <section className="hero-panel mission-panel">
-        <div className="hero-grid compact-hero-grid">
-          <div className="hero-copy board-hero-copy">
-            <div>
-              <div className="section-cap">Task field</div>
-              <h1 className="hero-title board-hero-title">Operational board</h1>
-            </div>
-
-            <div className="hero-meta-row compact-meta-row">
-              <div className="signal-chip live"><span className="signal-dot" /> bridge {settings.connector?.status || 'unknown'}</div>
-              <div className="signal-chip">agents {agents.length}</div>
-              <div className="signal-chip">urgent {urgentCount}</div>
-              <div className="signal-chip">completion {completion}%</div>
-            </div>
-
-            <div className="hero-actions compact-actions">
-              <Link href="/settings" className="button mission-primary">Connector</Link>
-              <Link href="/memory" className="button mission-secondary">Memory</Link>
-              <Link href="/docs" className="button mission-secondary">Workspace docs</Link>
-            </div>
-          </div>
-
-          <div className="hero-side">
-            <div className="status-rail mission-subpanel">
-              <div className="section-cap">Active thread</div>
-              <div className="status-block">
-                <div className="status-kicker">Primary objective</div>
-                <div className="status-title">{activeTask?.title || 'No active objective'}</div>
-                <p>{activeTask?.detail || 'No task is currently selected. Use the intake panel to create one.'}</p>
-              </div>
-              <div className="mini-metrics">
-                <div>
-                  <span>open</span>
-                  <strong>{tasks.length}</strong>
-                </div>
-                <div>
-                  <span>executing</span>
-                  <strong>{grouped.in_progress.length}</strong>
-                </div>
-                <div>
-                  <span>resolved</span>
-                  <strong>{doneCount}</strong>
-                </div>
-              </div>
-              <div className="progress-arc">
-                <div className="progress-bar"><div style={{ width: `${completion}%` }} /></div>
-                <div className="progress-caption">mission completion</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mission-grid-top">
-        <div className="mission-panel primary-focus">
-          <div className="panel-header-row">
+      <section className="mission-grid-top dashboard-top-grid">
+        <div className="mission-panel primary-focus top-board-panel">
+          <div className="panel-header-row board-header-tight">
             <div className="board-heading-block">
-              <div className="section-cap">Board lanes</div>
-              <h2 className="panel-title-xl">Execution flow</h2>
+              <div className="section-cap">Task field</div>
+              <h1 className="panel-title-xl board-main-title">Operational board</h1>
             </div>
             <div className="board-legend">
               {columns.map(([key, label]) => (
@@ -124,8 +66,8 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <aside className="mission-side-stack">
-          <div className="mission-panel compact-feed">
+        <aside className="mission-side-stack top-activity-stack">
+          <div className="mission-panel compact-feed top-activity-panel">
             <div className="panel-header-row tight">
               <div>
                 <div className="section-cap">Telemetry</div>
@@ -133,7 +75,7 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="activity-stream">
-              {feed.slice(0, 8).map((item) => (
+              {feed.slice(0, 10).map((item) => (
                 <div className="activity-item" key={item.id}>
                   <div className="activity-marker" />
                   <div>
@@ -146,19 +88,6 @@ export default async function HomePage() {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="widget-row">
-            <div className="mission-panel widget-panel">
-              <div className="section-cap">Bridge</div>
-              <div className="widget-big">{settings.connector?.status || 'unknown'}</div>
-              <p>{settings.connector?.notes || 'No connector note.'}</p>
-            </div>
-            <div className="mission-panel widget-panel cyan">
-              <div className="section-cap">Heartbeat</div>
-              <div className="widget-big">Auto</div>
-              <p>{settings.heartbeatPolicy}</p>
             </div>
           </div>
         </aside>
@@ -193,7 +122,14 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="agent-list-premium">
-            {agents.slice(0, 4).map((agent) => (
+            <div className="agent-row">
+              <div>
+                <div className="agent-name">Bridge</div>
+                <div className="agent-meta">connector · live status</div>
+              </div>
+              <div className="agent-state">{settings.connector?.status || 'unknown'}</div>
+            </div>
+            {agents.slice(0, 3).map((agent) => (
               <div className="agent-row" key={agent.id}>
                 <div>
                   <div className="agent-name">{agent.name}</div>
